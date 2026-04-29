@@ -61,6 +61,8 @@ STYLE_FILE=$2
 STYLE_MARKER_START=$3
 STYLE_MARKER_END=$4
 BLOCK_FILE=/tmp/halo-jenkins-style-block.html
+CLEAN_FILE=/tmp/halo-jenkins-layout-clean.html
+NEW_FILE=/tmp/halo-jenkins-layout-new.html
 
 if [ ! -f "$STYLE_FILE" ]; then
   echo "Style file was not found in Halo pod: $STYLE_FILE"
@@ -102,33 +104,42 @@ fi
 echo "Patching theme template: $TARGET_FILE"
 cp "$TARGET_FILE" "$TARGET_FILE.jenkins-backup"
 
-awk -v start="$STYLE_MARKER_START" -v end="$STYLE_MARKER_END" '
-  index($0, start) { skipping = 1; next }
-  index($0, end) { skipping = 0; next }
-  !skipping { print }
-' "$TARGET_FILE" > "$TARGET_FILE.clean"
+skipping=0
+: > "$CLEAN_FILE"
+while IFS= read -r line || [ -n "$line" ]; do
+  case "$line" in
+    *"$STYLE_MARKER_START"*)
+      skipping=1
+      continue
+      ;;
+    *"$STYLE_MARKER_END"*)
+      skipping=0
+      continue
+      ;;
+  esac
 
-awk -v block_file="$BLOCK_FILE" '
-  BEGIN {
-    while ((getline line < block_file) > 0) {
-      block = block line "\n"
-    }
-    close(block_file)
-  }
-  BEGIN { inserted = 0 }
-  tolower($0) ~ /<[/]head>/ && inserted == 0 {
-    printf "%s", block
-    inserted = 1
-  }
-  { print }
-  END {
-    if (inserted == 0) {
-      exit 1
-    }
-  }
-' "$TARGET_FILE.clean" > "$TARGET_FILE"
+  if [ "$skipping" -eq 0 ]; then
+    printf '%s\n' "$line" >> "$CLEAN_FILE"
+  fi
+done < "$TARGET_FILE"
 
-rm -f "$BLOCK_FILE" "$TARGET_FILE.clean"
+inserted=0
+: > "$NEW_FILE"
+while IFS= read -r line || [ -n "$line" ]; do
+  if [ "$inserted" -eq 0 ] && printf '%s\n' "$line" | grep -qi '</head>'; then
+    cat "$BLOCK_FILE" >> "$NEW_FILE"
+    inserted=1
+  fi
+  printf '%s\n' "$line" >> "$NEW_FILE"
+done < "$CLEAN_FILE"
+
+if [ "$inserted" -ne 1 ]; then
+  echo "Template no longer contains </head>: $TARGET_FILE"
+  exit 1
+fi
+
+cat "$NEW_FILE" > "$TARGET_FILE"
+rm -f "$BLOCK_FILE" "$CLEAN_FILE" "$NEW_FILE"
 REMOTE_SCRIPT
                 '''
             }
