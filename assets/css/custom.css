@@ -1,0 +1,142 @@
+/* Halo blog style demo managed by GitHub + Jenkins. */
+:root {
+  --demo-ink: #1f2937;
+  --demo-muted: #667085;
+  --demo-accent: #0f766e;
+  --demo-accent-strong: #115e59;
+  --demo-paper: #fffdf7;
+  --demo-panel: #ffffff;
+  --demo-line: rgba(15, 118, 110, 0.18);
+  --demo-shadow: 0 18px 45px rgba(31, 41, 55, 0.12);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--demo-ink);
+  background:
+    linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(255, 255, 255, 0) 320px),
+    var(--demo-paper);
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+a {
+  color: var(--demo-accent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--demo-accent-strong);
+}
+
+.site-header,
+.header,
+.navbar,
+.blog-header {
+  backdrop-filter: blur(14px);
+  background: rgba(255, 253, 247, 0.86) !important;
+  border-bottom: 1px solid var(--demo-line);
+}
+
+.post,
+.article,
+.post-card,
+.article-card,
+.card {
+  background: var(--demo-panel) !important;
+  border: 1px solid var(--demo-line) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--demo-shadow);
+}
+
+.post-title,
+.article-title,
+h1,
+h2,
+h3 {
+  color: #173b36;
+  letter-spacing: 0;
+}
+
+.post-content,
+.article-content,
+.content {
+  line-height: 1.82;
+}
+
+.post-content blockquote,
+.article-content blockquote,
+.content blockquote {
+  margin: 1.4rem 0;
+  padding: 0.9rem 1.1rem;
+  color: #344054;
+  background: rgba(15, 118, 110, 0.07);
+  border-left: 4px solid var(--demo-accent);
+  border-radius: 0 8px 8px 0;
+}
+
+button,
+.button,
+.btn,
+input[type="submit"] {
+  border-radius: 8px !important;
+}
+
+.btn-primary,
+.button-primary,
+button[type="submit"] {
+  background: var(--demo-accent) !important;
+  border-color: var(--demo-accent) !important;
+}
+
+code,
+pre {
+  border-radius: 8px;
+}
+
+pre {
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  box-shadow: 0 10px 26px rgba(31, 41, 55, 0.08);
+}
+
+.footer,
+.site-footer {
+  border-top: 1px solid var(--demo-line);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+/* Visible marker for the Jenkins demo. */
+body::before {
+  content: "GitHub + Jenkins 自动发布样式已生效";
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  max-width: min(320px, calc(100vw - 36px));
+  padding: 10px 14px;
+  color: #ffffff;
+  background: var(--demo-accent);
+  border-radius: 8px;
+  box-shadow: 0 14px 35px rgba(15, 118, 110, 0.28);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  body::before {
+    right: 12px;
+    bottom: 12px;
+    font-size: 12px;
+  }
+
+  .post,
+  .article,
+  .post-card,
+  .article-card,
+  .card {
+    border-radius: 6px !important;
+  }
+}
