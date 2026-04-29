@@ -5,7 +5,7 @@ pipeline {
         HALO_NAMESPACE = 'blog-system'
         HALO_LABEL = 'app=halo'
         HALO_WORK_DIR = '/root/.halo2'
-        HALO_ASSETS_DIR = '/root/.halo2/assets'
+        HALO_ASSETS_DIR = '/root/.halo2/themes/halo-k8s-theme/templates/assets'
         STYLE_MARKER_START = '<!-- halo-jenkins-style:start -->'
         STYLE_MARKER_END = '<!-- halo-jenkins-style:end -->'
     }
