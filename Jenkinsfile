@@ -69,14 +69,16 @@ if [ ! -d \${THEMES_DIR} ]; then
   exit 1
 fi
 
-TARGET_FILE=""
-for file in \
-  \$(find \${THEMES_DIR} -type f \( -name '*.html' -o -name '*.ftl' \) 2>/dev/null | sort); do
-  if grep -qi '</head>' \${file}; then
-    TARGET_FILE=\${file}
-    break
-  fi
-done
+TARGET_FILE=\$(find \${THEMES_DIR} -type f | sort | while IFS= read -r file; do
+  case \${file} in
+    *.html|*.ftl)
+      if grep -qi '</head>' \${file}; then
+        printf '%s\n' \${file}
+        exit 0
+      fi
+      ;;
+  esac
+done | head -1)
 
 if [ -z \${TARGET_FILE} ]; then
   echo "No theme template containing </head> was found."
@@ -99,8 +101,8 @@ echo "Patching theme template: \${TARGET_FILE}"
 cp \${TARGET_FILE} \${TARGET_FILE}.jenkins-backup
 
 awk -v start='${STYLE_MARKER_START}' -v end='${STYLE_MARKER_END}' '
-  index(\$0, start) { skipping = 1; next }
-  index(\$0, end) { skipping = 0; next }
+  index($0, start) { skipping = 1; next }
+  index($0, end) { skipping = 0; next }
   !skipping { print }
 ' \${TARGET_FILE} > \${TARGET_FILE}.clean
 
@@ -112,7 +114,7 @@ awk -v block_file=\${BLOCK_FILE} '
     close(block_file)
   }
   BEGIN { inserted = 0 }
-  tolower(\$0) ~ /<\/head>/ && inserted == 0 {
+  tolower($0) ~ /<[/]head>/ && inserted == 0 {
     printf "%s", block
     inserted = 1
   }
