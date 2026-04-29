@@ -60,6 +60,7 @@ pipeline {
 set -eu
 
 STYLE_FILE=/tmp/halo-jenkins-custom.css
+BLOCK_FILE=/tmp/halo-jenkins-style-block.html
 printf '%s' '${STYLE_B64}' | base64 -d > \${STYLE_FILE}
 
 THEMES_DIR='${HALO_WORK_DIR}/themes'
@@ -84,30 +85,46 @@ if [ -z \${TARGET_FILE} ]; then
   exit 1
 fi
 
+cat > \${BLOCK_FILE} <<'BLOCK_EOF'
+${STYLE_MARKER_START}
+<style>
+BLOCK_EOF
+cat \${STYLE_FILE} >> \${BLOCK_FILE}
+cat >> \${BLOCK_FILE} <<'BLOCK_EOF'
+</style>
+${STYLE_MARKER_END}
+BLOCK_EOF
+
 echo "Patching theme template: \${TARGET_FILE}"
 cp \${TARGET_FILE} \${TARGET_FILE}.jenkins-backup
 
-python3 - \${TARGET_FILE} \${STYLE_FILE} <<'PY'
-import re
-import sys
-from pathlib import Path
+awk -v start='${STYLE_MARKER_START}' -v end='${STYLE_MARKER_END}' '
+  index(\$0, start) { skipping = 1; next }
+  index(\$0, end) { skipping = 0; next }
+  !skipping { print }
+' \${TARGET_FILE} > \${TARGET_FILE}.clean
 
-target = Path(sys.argv[1])
-style_file = Path(sys.argv[2])
-start = '${STYLE_MARKER_START}'
-end = '${STYLE_MARKER_END}'
-css = style_file.read_text(encoding='utf-8')
-html = target.read_text(encoding='utf-8')
-block = f"{start}\n<style>\n{css}\n</style>\n{end}"
-html = re.sub(rf"\s*{re.escape(start)}.*?{re.escape(end)}", "", html, flags=re.S)
-if re.search(r"</head>", html, flags=re.I):
-    html = re.sub(r"</head>", block + "\n</head>", html, count=1, flags=re.I)
-else:
-    raise SystemExit('Template no longer contains </head>.')
-target.write_text(html, encoding='utf-8')
-PY
+awk -v block_file=\${BLOCK_FILE} '
+  BEGIN {
+    while ((getline line < block_file) > 0) {
+      block = block line "\n"
+    }
+    close(block_file)
+  }
+  BEGIN { inserted = 0 }
+  tolower(\$0) ~ /<\/head>/ && inserted == 0 {
+    printf "%s", block
+    inserted = 1
+  }
+  { print }
+  END {
+    if (inserted == 0) {
+      exit 1
+    }
+  }
+' \${TARGET_FILE}.clean > \${TARGET_FILE}
 
-rm -f \${STYLE_FILE}
+rm -f \${STYLE_FILE} \${BLOCK_FILE} \${TARGET_FILE}.clean
 EOF
                 '''
             }
