@@ -49,64 +49,66 @@ pipeline {
                 sh '''
                 set -eu
 
-                if [ ! -f assets/css/custom.css ]; then
-                  echo "assets/css/custom.css was not found, skipping theme patch."
-                  exit 0
-                fi
-
-                STYLE_B64=$(base64 < assets/css/custom.css | tr -d '\n')
-
-                kubectl exec -i -n ${HALO_NAMESPACE} ${HALO_POD} -- /bin/sh -s <<EOF
+                kubectl exec -i -n ${HALO_NAMESPACE} ${HALO_POD} -- /bin/sh -s -- \
+                  "${HALO_WORK_DIR}" \
+                  "${HALO_ASSETS_DIR}/css/custom.css" \
+                  "${STYLE_MARKER_START}" \
+                  "${STYLE_MARKER_END}" <<'REMOTE_SCRIPT'
 set -eu
 
-STYLE_FILE=/tmp/halo-jenkins-custom.css
+HALO_WORK_DIR=$1
+STYLE_FILE=$2
+STYLE_MARKER_START=$3
+STYLE_MARKER_END=$4
 BLOCK_FILE=/tmp/halo-jenkins-style-block.html
-printf '%s' '${STYLE_B64}' | base64 -d > \${STYLE_FILE}
 
-THEMES_DIR='${HALO_WORK_DIR}/themes'
-if [ ! -d \${THEMES_DIR} ]; then
-  echo "Theme directory was not found: \${THEMES_DIR}"
+if [ ! -f "$STYLE_FILE" ]; then
+  echo "Style file was not found in Halo pod: $STYLE_FILE"
   exit 1
 fi
 
-TARGET_FILE=\$(find \${THEMES_DIR} -type f | sort | while IFS= read -r file; do
-  case \${file} in
+THEMES_DIR="$HALO_WORK_DIR/themes"
+if [ ! -d "$THEMES_DIR" ]; then
+  echo "Theme directory was not found: $THEMES_DIR"
+  exit 1
+fi
+
+TARGET_FILE=$(find "$THEMES_DIR" -type f | sort | while IFS= read -r file; do
+  case "$file" in
     *.html|*.ftl)
-      if grep -qi '</head>' \${file}; then
-        printf '%s\n' \${file}
+      if grep -qi '</head>' "$file"; then
+        printf '%s\n' "$file"
         exit 0
       fi
       ;;
   esac
 done | head -1)
 
-if [ -z \${TARGET_FILE} ]; then
+if [ -z "$TARGET_FILE" ]; then
   echo "No theme template containing </head> was found."
   echo "Available theme files:"
-  find \${THEMES_DIR} -maxdepth 4 -type f | sort | head -80
+  find "$THEMES_DIR" -maxdepth 4 -type f | sort | head -80
   exit 1
 fi
 
-cat > \${BLOCK_FILE} <<'BLOCK_EOF'
-${STYLE_MARKER_START}
-<style>
-BLOCK_EOF
-cat \${STYLE_FILE} >> \${BLOCK_FILE}
-cat >> \${BLOCK_FILE} <<'BLOCK_EOF'
-</style>
-${STYLE_MARKER_END}
-BLOCK_EOF
+{
+  printf '%s\n' "$STYLE_MARKER_START"
+  printf '<style>\n'
+  cat "$STYLE_FILE"
+  printf '\n</style>\n'
+  printf '%s\n' "$STYLE_MARKER_END"
+} > "$BLOCK_FILE"
 
-echo "Patching theme template: \${TARGET_FILE}"
-cp \${TARGET_FILE} \${TARGET_FILE}.jenkins-backup
+echo "Patching theme template: $TARGET_FILE"
+cp "$TARGET_FILE" "$TARGET_FILE.jenkins-backup"
 
-awk -v start='${STYLE_MARKER_START}' -v end='${STYLE_MARKER_END}' '
+awk -v start="$STYLE_MARKER_START" -v end="$STYLE_MARKER_END" '
   index($0, start) { skipping = 1; next }
   index($0, end) { skipping = 0; next }
   !skipping { print }
-' \${TARGET_FILE} > \${TARGET_FILE}.clean
+' "$TARGET_FILE" > "$TARGET_FILE.clean"
 
-awk -v block_file=\${BLOCK_FILE} '
+awk -v block_file="$BLOCK_FILE" '
   BEGIN {
     while ((getline line < block_file) > 0) {
       block = block line "\n"
@@ -124,10 +126,10 @@ awk -v block_file=\${BLOCK_FILE} '
       exit 1
     }
   }
-' \${TARGET_FILE}.clean > \${TARGET_FILE}
+' "$TARGET_FILE.clean" > "$TARGET_FILE"
 
-rm -f \${STYLE_FILE} \${BLOCK_FILE} \${TARGET_FILE}.clean
-EOF
+rm -f "$BLOCK_FILE" "$TARGET_FILE.clean"
+REMOTE_SCRIPT
                 '''
             }
         }
